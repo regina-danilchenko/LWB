@@ -16,6 +16,7 @@ headers ={
 }
 
 
+# перевод слова word на язык language
 def translate(word, language):
     data["texts"].clear()
     data["texts"].append(word)

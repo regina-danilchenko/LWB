@@ -7,17 +7,21 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import BotCommand, Message, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardBuilder, KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import BotCommand, Message, CallbackQuery, ReplyKeyboardRemove
 from config import BOT_TOKEN
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 dp = Dispatcher()
 
+# глобальная переменная языка, на который будет переведено слово
+language_code = None
+
 
 class Form(StatesGroup):
     add = State()
+    language = State()
 
 
 async def main():
@@ -88,27 +92,62 @@ async def process_help(request: Message | CallbackQuery):
     await print_text(request, text)
 
 
-# добавление нового слова
+# команда добавления нового слова
 @dp.message(Command('add'))
 @dp.callback_query(lambda c: c.data == "add")
-async def process_add(request: Message | CallbackQuery, state: FSMContext):
+async def process_add(message: Message, state: FSMContext):
+    await state.set_state(Form.language)
+    text = 'Выберите язык, на котором хотите выучить слово.'
+    keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Английский"), KeyboardButton(text="Китайский")],
+                                    [KeyboardButton(text="Французский"), KeyboardButton(text="Испанский")],
+                                    [KeyboardButton(text="Немецкий"), KeyboardButton(text="Португальский")],
+                                    [KeyboardButton(text="Русский"), KeyboardButton(text="Казахский")]])
+    await message.answer(text, reply_markup=keyboard)
+
+
+# выбор языка, на котором будет переведено слово
+@dp.message(Form.language)
+async def choice_language(message: Message, state: FSMContext):
     await state.set_state(Form.add)
-    text = "Введите слово, которое хотите добавить."
-    await print_text(request, text)
+    language = message.text
+    global language_code
+    if language == 'Английский':
+        language_code = 'en'
+    elif language == 'Китайский':
+        language_code = 'zh'
+    elif language == 'Французский':
+        language_code = 'fr'
+    elif language == 'Испанский':
+        language_code = 'es'
+    elif language == 'Немецкий':
+        language_code = 'de'
+    elif language == 'Португальский':
+        language_code = 'pt'
+    elif language == 'Казахский':
+        language_code = 'kk'
+    else:
+        language_code = 'ru'
+        print(language == 'Французский')
+
+    text = 'Введите слово, которое хотите добавить.'
+    await message.answer(text, reply_markup=ReplyKeyboardRemove())
 
 
+# добавление и вывод результата
 @dp.message(Form.add)
 async def add_word(message: Message, state: FSMContext):
+    global language_code
     await state.clear()
     word = message.text
     await message.answer(f'Вы добавили в словарь новое слово!\n'
                          f'\n'
                          f'Слово: {word.capitalize()}\n'
-                         f'Исходный язык: {translate(word.capitalize(), 'en')[1]}\n'
-                         f'Перевод: {translate(word.capitalize(), 'en')[0]}\n'
-                         f'Язык перевода: en\n'
+                         f'Исходный язык: {translate(word.capitalize(), language_code)[1]}\n'
+                         f'Перевод: {translate(word.capitalize(), language_code)[0]}\n'
+                         f'Язык перевода: {language_code}\n'
                          f'\n'
                          f'👍Так держать!👍')
+    language_code = None
 
 
 
