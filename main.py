@@ -44,12 +44,18 @@ async def set_main_menu(bot: Bot):
 
 
 # вывод текста
-async def print_text(request, text):
+async def print_text(request, text, keyboard=None):
     if isinstance(request, CallbackQuery):
-        await request.message.answer(text)
+        if keyboard:
+            await request.message.answer(text, reply_markup=keyboard)
+        else:
+            await request.message.answer(text)
         await request.answer()
     else:
-        await request.answer(text)
+        if keyboard:
+            await request.answer(text, reply_markup=keyboard)
+        else:
+            await request.answer(text)
 
 
 # главное меню
@@ -95,14 +101,14 @@ async def process_help(request: Message | CallbackQuery):
 # команда добавления нового слова
 @dp.message(Command('add'))
 @dp.callback_query(lambda c: c.data == "add")
-async def process_add(message: Message, state: FSMContext):
+async def process_add(request: Message, state: FSMContext):
     await state.set_state(Form.language)
     text = 'Выберите язык, на котором хотите выучить слово.'
     keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Английский"), KeyboardButton(text="Китайский")],
                                     [KeyboardButton(text="Французский"), KeyboardButton(text="Испанский")],
                                     [KeyboardButton(text="Немецкий"), KeyboardButton(text="Португальский")],
                                     [KeyboardButton(text="Русский"), KeyboardButton(text="Казахский")]])
-    await message.answer(text, reply_markup=keyboard)
+    await print_text(request, text, keyboard=keyboard)
 
 
 # выбор языка, на котором будет переведено слово
