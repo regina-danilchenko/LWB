@@ -1,1 +1,5 @@
-BOT_TOKEN = "7718522591:AAFh6ZgZYIOvVSBt4o83hqruJOwmAi-hYhw"
+BOT_TOKEN = "... "
+
+API_KEY = "..."
+
+FOLDER_ID = "..."
