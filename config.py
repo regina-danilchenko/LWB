@@ -1,4 +1,4 @@
-BOT_TOKEN = "... "
+BOT_TOKEN = "..."
 
 API_KEY = "..."
 
