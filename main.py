@@ -10,6 +10,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.types import BotCommand, Message, CallbackQuery, ReplyKeyboardRemove
 from config import BOT_TOKEN
+from database import insert_word as db_add_word, get_all_words, conn
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
@@ -133,7 +134,6 @@ async def choice_language(message: Message, state: FSMContext):
         language_code = 'kk'
     else:
         language_code = 'ru'
-        print(language == 'Французский')
 
     text = 'Введите слово, которое хотите добавить.'
     await message.answer(text, reply_markup=ReplyKeyboardRemove())
@@ -145,6 +145,11 @@ async def add_word(message: Message, state: FSMContext):
     global language_code
     await state.clear()
     word = message.text
+    translated_word, original_language = translate(word.capitalize(), language_code)
+    
+    # Добавляем слово в базу данных
+    db_add_word(conn, word.capitalize(), translated_word, original_language, language_code)
+    
     await message.answer(f'Вы добавили в словарь новое слово!\n'
                          f'\n'
                          f'Слово: {word.capitalize()}\n'
@@ -161,7 +166,14 @@ async def add_word(message: Message, state: FSMContext):
 @dp.message(Command('open_dict'))
 @dp.callback_query(lambda c: c.data == "open_dict")
 async def process_add(request: Message | CallbackQuery):
-    text = "Функция находится в разработке ⚙️"
+    words = get_all_words(conn)
+    if not words:
+        text = "Ваш словарь пока пуст. Добавьте слова с помощью команды /add"
+    else:
+        text = "📚 Ваш словарь:\n\n"
+        for word in words:
+            text += (f"🔹 {word[1]} ({word[3]}) → {word[2]} ({word[4]})\n"
+                    f"Добавлено: {word[5]}\n\n")
     await print_text(request, text)
 
 
