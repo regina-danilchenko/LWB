@@ -1,7 +1,8 @@
 import asyncio
 import logging
-
-
+from data.user import User
+from data.word import Word
+from data import db_session
 from functions import translate
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -10,8 +11,6 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.types import BotCommand, Message, CallbackQuery, ReplyKeyboardRemove
 from config import BOT_TOKEN
-from database import insert_word as db_add_word, get_all_words, conn
-
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 dp = Dispatcher()
@@ -26,6 +25,8 @@ class Form(StatesGroup):
 
 
 async def main():
+    # инициализвция БД
+    db_session.global_init("db/LearnWordsBD.db")
     bot = Bot(token=BOT_TOKEN)
     await bot.delete_webhook(drop_pending_updates=True)
     await set_main_menu(bot)
@@ -81,6 +82,16 @@ async def process_start_command(message: Message):
     builder.add(types.InlineKeyboardButton(text="📝 Проверка", callback_data="test"))
     builder.add(types.InlineKeyboardButton(text="❓ Помощь", callback_data="help"))
     builder.adjust(2)
+
+    # добавление пользователя в БД, если его там нет
+    db_sess = db_session.create_session()
+    users_ids = [user.tg_id for user in db_sess.query(User).all()]
+    user_id = message.from_user.id
+    if not user_id in users_ids:
+        user = User()
+        user.tg_id = user_id
+        db_sess.add(user)
+        db_sess.commit()
     await message.answer(text, reply_markup=builder.as_markup())
 
 # помощь
@@ -145,17 +156,33 @@ async def choice_language(message: Message, state: FSMContext):
 async def add_word(message: Message, state: FSMContext):
     global language_code
     await state.clear()
-    word = message.text
-    translated_word, original_language = translate(word.capitalize(), language_code)
-    
-    # Добавляем слово в базу данных
-    db_add_word(conn, word.capitalize(), translated_word, original_language, language_code)
+    original_word = message.text
+
+    # перевод слова
+    translated_word, original_language = translate(original_word.capitalize(), language_code)
+
+    # добавление в словарь
+    db_sess = db_session.create_session()
+    word = Word()
+    word.original_word = original_word
+    word.translated_word = translated_word
+    word.original_language = original_language
+    word.target_language = language_code
+    db_sess.add(word)
+    db_sess.commit()
+
+    # добавление в словарь и добавление связи в таблицу связей user_to_word двух таблиц user и word
+    db_sess = db_session.create_session()
+    user_id = message.from_user.id
+    user = db_sess.query(User).filter(User.tg_id == user_id).first()
+    user.words.append(word)
+    db_sess.commit()
     
     await message.answer(f'Вы добавили в словарь новое слово!\n'
                          f'\n'
-                         f'Слово: {word.capitalize()}\n'
-                         f'Исходный язык: {translate(word.capitalize(), language_code)[1]}\n'
-                         f'Перевод: {translate(word.capitalize(), language_code)[0]}\n'
+                         f'Слово: {original_word.capitalize()}\n'
+                         f'Исходный язык: {original_language}\n'
+                         f'Перевод: {translated_word}\n'
                          f'Язык перевода: {language_code}\n'
                          f'\n'
                          f'👍Так держать!👍')
@@ -167,14 +194,13 @@ async def add_word(message: Message, state: FSMContext):
 @dp.message(Command('open_dict'))
 @dp.callback_query(lambda c: c.data == "open_dict")
 async def process_add(request: Message | CallbackQuery):
-    words = get_all_words(conn)
-    if not words:
-        text = "Ваш словарь пока пуст. Добавьте слова с помощью команды /add"
-    else:
-        text = "📚 Ваш словарь:\n\n"
-        for word in words:
-            text += (f"🔹 {word[1]} ({word[3]}) → {word[2]} ({word[4]})\n"
-                    f"Добавлено: {word[5]}\n\n")
+    db_sess = db_session.create_session()
+    user_id = request.from_user.id
+    words = [user.words for user in db_sess.query(User).filter(User.tg_id == user_id).all()][0]
+    text = "📚 Ваш словарь:\n\n"
+    for word in words:
+        text += (f'🔹 {word.original_word.capitalize()}({word.original_language}) → {word.translated_word}({word.target_language})\n'
+                 f'Добавлено: {word.added_date.strftime('%d.%m.%Y')}\n\n')
     await print_text(request, text)
 
 
