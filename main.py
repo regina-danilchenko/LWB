@@ -37,6 +37,7 @@ async def set_main_menu(bot: Bot):
     main_menu_commands = [
         BotCommand(command='/start', description='🚀 Запустить бота'),
         BotCommand(command='/add', description='➕ Добавить слово'),
+        BotCommand(command='/open_dict', description='📚 Словарь'),
         BotCommand(command='/learn', description='🎓 Учить'),
         BotCommand(command='/test', description='📝 Проверка'),
         BotCommand(command='/help', description='❓ Помощь')
@@ -63,7 +64,7 @@ async def print_text(request, text, keyboard=None):
 @dp.message(Command('start'))
 async def process_start_command(message: Message):
     text = """
-🌟 Добро пожаловать в LearnWordsBot! 🌟
+🌟Добро пожаловать в LearnWordsBot!🌟
 
 Я помогу тебе: 
 ✅ Расширить словарный запас 
