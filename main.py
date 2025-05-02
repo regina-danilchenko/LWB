@@ -204,32 +204,35 @@ async def add_word(message: Message, state: FSMContext):
 # добавление изображения и вывод результата
 @dp.message(Form.add_image)
 async def add_image(message: Message, state: FSMContext):
-    photos = message.photo
-    file_id = photos[-1].file_id
+    try:
+        photos = message.photo
+        file_id = photos[-1].file_id
 
-    # получение id из прошлой функции
-    data = await state.get_data()
-    await state.clear()
-    db_sess = db_session.create_session()
-    word = db_sess.query(Word).filter(Word.id == data["id_word"]).first()
+        # получение id из прошлой функции
+        data = await state.get_data()
+        await state.clear()
+        db_sess = db_session.create_session()
+        word = db_sess.query(Word).filter(Word.id == data["id_word"]).first()
 
-    # добавление изображения
-    db_sess = db_session.create_session()
-    image = Image()
-    image.word_id = word.id
-    image.file_id = file_id
-    db_sess.add(image)
-    db_sess.commit()
+        # добавление изображения
+        db_sess = db_session.create_session()
+        image = Image()
+        image.word_id = word.id
+        image.file_id = file_id
+        db_sess.add(image)
+        db_sess.commit()
 
-    text = (f'Вы добавили в словарь новое слово!\n'
-                         f'\n'
-                         f'Слово: {word.original_word.capitalize()}\n'
-                         f'Перевод: {word.translation.capitalize()}\n'
-                         f'Дата добавленя: {datetime.now().strftime('%d.%m.%Y')}\n'
-                         f'\n'
-                         f'👍Так держать!👍')
+        text = (f'Вы добавили в словарь новое слово!\n'
+                             f'\n'
+                             f'Слово: {word.original_word.capitalize()}\n'
+                             f'Перевод: {word.translation.capitalize()}\n'
+                             f'Дата добавленя: {datetime.now().strftime('%d.%m.%Y')}\n'
+                             f'\n'
+                             f'👍Так держать!👍')
 
-    await message.answer_photo(photo=file_id, caption=text)
+        await message.answer_photo(photo=file_id, caption=text)
+    except TypeError:
+        await message.answer('Неподдерживаемый формат для изображений. Выберите изображение.')
 
 
 # просмотр всех слов
