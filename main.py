@@ -4,6 +4,7 @@ from data.user import User
 from data.word import Word
 from data import db_session
 from functions import translate
+from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -15,13 +16,10 @@ from config import BOT_TOKEN
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 dp = Dispatcher()
 
-# глобальная переменная языка, на который будет переведено слово
-language_code = None
-
 
 class Form(StatesGroup):
-    add = State()
-    language = State()
+    choice_language = State()
+    add_word = State()
 
 
 async def main():
@@ -63,36 +61,44 @@ async def print_text(request, text, keyboard=None):
 
 # главное меню
 @dp.message(Command('start'))
-async def process_start_command(message: Message):
-    text = """
-🌟Добро пожаловать в LearnWordsBot!🌟
-
-Я помогу тебе: 
-✅ Расширить словарный запас 
-✅ Запоминать слова легко 
-✅ Преодолеть языковой барьер 
-
-С чего начнём? 🚀 
-Выбирай действие ниже! 👇
-"""
-    builder = InlineKeyboardBuilder()
-    builder.add(types.InlineKeyboardButton(text="➕ Добавить слово", callback_data="add"))
-    builder.add(types.InlineKeyboardButton(text="📚 Словарь", callback_data="open_dict"))
-    builder.add(types.InlineKeyboardButton(text="🎓 Учить", callback_data="learn"))
-    builder.add(types.InlineKeyboardButton(text="📝 Проверка", callback_data="test"))
-    builder.add(types.InlineKeyboardButton(text="❓ Помощь", callback_data="help"))
-    builder.adjust(2)
-
-    # добавление пользователя в БД, если его там нет
+async def process_start_command(message: Message, state: FSMContext):
     db_sess = db_session.create_session()
     users_ids = [user.tg_id for user in db_sess.query(User).all()]
     user_id = message.from_user.id
     if not user_id in users_ids:
-        user = User()
-        user.tg_id = user_id
-        db_sess.add(user)
-        db_sess.commit()
-    await message.answer(text, reply_markup=builder.as_markup())
+        await state.set_state(Form.choice_language)
+        keyboard_language = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="Английский"), KeyboardButton(text="Китайский")],
+                      [KeyboardButton(text="Французский"), KeyboardButton(text="Испанский")],
+                      [KeyboardButton(text="Немецкий"),
+                       KeyboardButton(text="Португальский")],
+                      [KeyboardButton(text="Русский"), KeyboardButton(text="Казахский")]])
+
+        await message.answer('Вы ещё не зарегестрированы.\n'
+                             'Пройдите регистрацию и начинайте учить слова.\n\n'
+                             'Выберите язык, на котром хотите учить слова.', reply_markup=keyboard_language)
+    else:
+        text = """
+    🌟Добро пожаловать в LearnWordsBot!🌟
+
+    Я помогу тебе:
+    ✅ Расширить словарный запас
+    ✅ Запоминать слова легко
+    ✅ Преодолеть языковой барьер
+
+    С чего начнём? 🚀
+    Выбирай действие ниже! 👇
+    """
+        builder = InlineKeyboardBuilder()
+        builder.add(types.InlineKeyboardButton(text="➕ Добавить слово", callback_data="add"))
+        builder.add(types.InlineKeyboardButton(text="📚 Словарь", callback_data="open_dict"))
+        builder.add(types.InlineKeyboardButton(text="🎓 Учить", callback_data="learn"))
+        builder.add(types.InlineKeyboardButton(text="📝 Проверка", callback_data="test"))
+        builder.add(types.InlineKeyboardButton(text="❓ Помощь", callback_data="help"))
+        builder.adjust(2)
+
+        await message.answer(text, reply_markup=builder.as_markup())
+
 
 # помощь
 @dp.message(Command('help'))
@@ -115,21 +121,16 @@ async def process_help(request: Message | CallbackQuery):
 @dp.message(Command('add'))
 @dp.callback_query(lambda c: c.data == "add")
 async def process_add(request: Message, state: FSMContext):
-    await state.set_state(Form.language)
-    text = 'Выберите язык, на котором хотите выучить слово.'
-    keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Английский"), KeyboardButton(text="Китайский")],
-                                    [KeyboardButton(text="Французский"), KeyboardButton(text="Испанский")],
-                                    [KeyboardButton(text="Немецкий"), KeyboardButton(text="Португальский")],
-                                    [KeyboardButton(text="Русский"), KeyboardButton(text="Казахский")]])
-    await print_text(request, text, keyboard=keyboard)
+    await state.set_state(Form.add_word)
+    text = 'Введите слово, которое хотите выучить.'
+    await print_text(request, text)
 
 
-# выбор языка, на котором будет переведено слово
-@dp.message(Form.language)
+# выбор языка, на котором будет проходить обучение, и регистрация
+@dp.message(Form.choice_language)
 async def choice_language(message: Message, state: FSMContext):
-    await state.set_state(Form.add)
+    await state.clear()
     language = message.text
-    global language_code
     if language == 'Английский':
         language_code = 'en'
     elif language == 'Китайский':
@@ -147,27 +148,40 @@ async def choice_language(message: Message, state: FSMContext):
     else:
         language_code = 'ru'
 
-    text = 'Введите слово, которое хотите добавить.'
+    db_sess = db_session.create_session()
+    user = User()
+    user.tg_id = message.from_user.id
+    user.username = message.from_user.username
+    user.language_preference = language_code
+    user.statistics = 0
+    db_sess.add(user)
+    db_sess.commit()
+
+    text = (f'✅ Вы, {message.from_user.username}, закончили регистрацию. ✅\n'
+            '\n'
+            'Начните изучение новых слов прямо сейчас.\n'
+            '\n'
+            '👍Желаем удачи!👍')
     await message.answer(text, reply_markup=ReplyKeyboardRemove())
 
 
 # добавление и вывод результата
-@dp.message(Form.add)
+@dp.message(Form.add_word)
 async def add_word(message: Message, state: FSMContext):
-    global language_code
     await state.clear()
     original_word = message.text
+    db_sess = db_session.create_session()
+    language = db_sess.query(User).filter(User.tg_id == message.from_user.id).first().language_preference
 
     # перевод слова
-    translated_word, original_language = translate(original_word.capitalize(), language_code)
+    translated_word = translate(original_word.capitalize(), language)
 
     # добавление в словарь
     db_sess = db_session.create_session()
     word = Word()
-    word.original_word = original_word
-    word.translated_word = translated_word
-    word.original_language = original_language
-    word.target_language = language_code
+    word.original_word = translated_word
+    word.translation = original_word
+    word.last_reviewed = datetime.now()
     db_sess.add(word)
     db_sess.commit()
 
@@ -176,18 +190,16 @@ async def add_word(message: Message, state: FSMContext):
     user_id = message.from_user.id
     user = db_sess.query(User).filter(User.tg_id == user_id).first()
     user.words.append(word)
+    user.statistics += 1
     db_sess.commit()
-    
+
     await message.answer(f'Вы добавили в словарь новое слово!\n'
                          f'\n'
-                         f'Слово: {original_word.capitalize()}\n'
-                         f'Исходный язык: {original_language}\n'
-                         f'Перевод: {translated_word}\n'
-                         f'Язык перевода: {language_code}\n'
+                         f'Слово: {translated_word}\n'
+                         f'Перевод: {original_word.capitalize()}\n'
+                         f'Дата добавленя: {datetime.now().strftime('%d.%m.%Y')}\n'
                          f'\n'
                          f'👍Так держать!👍')
-    language_code = None
-
 
 
 # просмотр всех слов
@@ -197,10 +209,12 @@ async def process_add(request: Message | CallbackQuery):
     db_sess = db_session.create_session()
     user_id = request.from_user.id
     words = [user.words for user in db_sess.query(User).filter(User.tg_id == user_id).all()][0]
+    language = db_sess.query(User).filter(User.tg_id == user_id).first().language_preference
     text = "📚 Ваш словарь:\n\n"
     for word in words:
-        text += (f'🔹 {word.original_word.capitalize()}({word.original_language}) → {word.translated_word}({word.target_language})\n'
-                 f'Добавлено: {word.added_date.strftime('%d.%m.%Y')}\n\n')
+        text += (f'🔹 {word.original_word.capitalize()}({language}) → {word.translation.capitalize()}\n'
+                 f'Добавлено: {word.added_date.strftime('%d.%m.%Y')}\n'
+                 f'Последнее повторение: {word.last_reviewed.strftime('%d.%m.%Y')}\n\n')
     await print_text(request, text)
 
 

@@ -22,4 +22,4 @@ def translate(word, language):
     data["texts"].append(word)
     data["targetLanguageCode"] = language
     response = requests.post(url, data=json.dumps(data), headers=headers).json()
-    return response["translations"][0]["text"], response["translations"][0]["detectedLanguageCode"]
+    return response["translations"][0]["text"]

@@ -9,7 +9,11 @@ class User(SqlAlchemyBase):
 
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True)
-    tg_id =sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
+    tg_id = sqlalchemy.Column(sqlalchemy.Integer)
+    username = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+    language_preference = sqlalchemy.Column(sqlalchemy.String)
+    learning_mode = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+    statistics = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
     words = orm.relationship("Word",
                                   secondary="user_to_word",
                                   backref="users")
