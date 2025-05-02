@@ -2,6 +2,7 @@ import asyncio
 import logging
 from data.user import User
 from data.word import Word
+from data.image import Image
 from data import db_session
 from functions import translate
 from datetime import datetime
@@ -20,6 +21,7 @@ dp = Dispatcher()
 class Form(StatesGroup):
     choice_language = State()
     add_word = State()
+    add_image = State()
 
 
 async def main():
@@ -165,10 +167,10 @@ async def choice_language(message: Message, state: FSMContext):
     await message.answer(text, reply_markup=ReplyKeyboardRemove())
 
 
-# добавление и вывод результата
+# добавление слова
 @dp.message(Form.add_word)
 async def add_word(message: Message, state: FSMContext):
-    await state.clear()
+    await state.set_state(Form.add_image)
     original_word = message.text
     db_sess = db_session.create_session()
     language = db_sess.query(User).filter(User.tg_id == message.from_user.id).first().language_preference
@@ -176,7 +178,7 @@ async def add_word(message: Message, state: FSMContext):
     # перевод слова
     translated_word = translate(original_word.capitalize(), language)
 
-    # добавление в словарь
+    # добавление в словарь слова
     db_sess = db_session.create_session()
     word = Word()
     word.original_word = translated_word
@@ -190,16 +192,44 @@ async def add_word(message: Message, state: FSMContext):
     user_id = message.from_user.id
     user = db_sess.query(User).filter(User.tg_id == user_id).first()
     user.words.append(word)
+    id_word = word.id
     user.statistics += 1
     db_sess.commit()
 
-    await message.answer(f'Вы добавили в словарь новое слово!\n'
+    # передача id слова в следующую функцию
+    await state.update_data(id_word=id_word)
+    await message.answer('Добавьте изображение к слову, чтобы лучше его запомнить.')
+
+
+# добавление изображения и вывод результата
+@dp.message(Form.add_image)
+async def add_image(message: Message, state: FSMContext):
+    photos = message.photo
+    file_id = photos[-1].file_id
+
+    # получение id из прошлой функции
+    data = await state.get_data()
+    await state.clear()
+    db_sess = db_session.create_session()
+    word = db_sess.query(Word).filter(Word.id == data["id_word"]).first()
+
+    # добавление изображения
+    db_sess = db_session.create_session()
+    image = Image()
+    image.word_id = word.id
+    image.file_id = file_id
+    db_sess.add(image)
+    db_sess.commit()
+
+    text = (f'Вы добавили в словарь новое слово!\n'
                          f'\n'
-                         f'Слово: {translated_word}\n'
-                         f'Перевод: {original_word.capitalize()}\n'
+                         f'Слово: {word.original_word.capitalize()}\n'
+                         f'Перевод: {word.translation.capitalize()}\n'
                          f'Дата добавленя: {datetime.now().strftime('%d.%m.%Y')}\n'
                          f'\n'
                          f'👍Так держать!👍')
+
+    await message.answer_photo(photo=file_id, caption=text)
 
 
 # просмотр всех слов
