@@ -1,6 +1,6 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 
@@ -8,6 +8,7 @@ from data import db_session
 from data.user import User
 
 from utils.states import Form
+from utils.common import print_text
 
 
 # Создаём роутер
@@ -16,10 +17,11 @@ start_router = Router()
 
 # главное меню
 @start_router.message(Command('start'))
-async def process_start_command(message: Message, state: FSMContext):
+@start_router.callback_query(lambda c: c.data == "start")
+async def process_start_command(request: Message | CallbackQuery, state: FSMContext):
     db_sess = db_session.create_session()
     users_ids = [user.tg_id for user in db_sess.query(User).all()]
-    user_id = message.from_user.id
+    user_id = request.from_user.id
     if not user_id in users_ids:
         await state.set_state(Form.choice_language)
         keyboard_language = ReplyKeyboardMarkup(
@@ -29,9 +31,9 @@ async def process_start_command(message: Message, state: FSMContext):
                        KeyboardButton(text="Португальский")],
                       [KeyboardButton(text="Русский"), KeyboardButton(text="Казахский")]])
 
-        await message.answer('Вы ещё не зарегестрированы.\n'
+        await print_text(request,'Вы ещё не зарегестрированы.\n'
                              'Пройдите регистрацию и начинайте учить слова.\n\n'
-                             'Выберите язык, на котром хотите учить слова.', reply_markup=keyboard_language)
+                             'Выберите язык, на котром хотите учить слова.', keyboard_language)
     else:
         text = """
 🌟Добро пожаловать в LearnWordsBot!🌟
@@ -52,7 +54,7 @@ async def process_start_command(message: Message, state: FSMContext):
         builder.add(types.InlineKeyboardButton(text="❓ Помощь", callback_data="help"))
         builder.adjust(2)
 
-        await message.answer(text, reply_markup=builder.as_markup())
+        await print_text(request, text, builder.as_markup())
 
 
 # выбор языка, на котором будет проходить обучение, и регистрация
