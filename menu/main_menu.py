@@ -7,7 +7,9 @@ async def set_main_menu(bot: Bot):
     main_menu_commands = [
         BotCommand(command='/start', description='🚀 Запустить бота'),
         BotCommand(command='/add', description='➕ Добавить слово'),
+        BotCommand(command='/delete', description='❌ Удалить слово'),
         BotCommand(command='/open_dict', description='📚 Словарь'),
+        BotCommand(command='/clear_dict', description='🚫 Очистить словарь'),
         BotCommand(command='/learn', description='🎓 Учить'),
         BotCommand(command='/test', description='📝 Проверка'),
         BotCommand(command='/help', description='❓ Помощь')

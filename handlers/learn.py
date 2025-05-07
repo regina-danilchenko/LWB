@@ -1,3 +1,5 @@
+import os
+
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
@@ -90,7 +92,10 @@ async def show_one_card(current_word, request):
             InputMediaPhoto(media=image.file_id,caption=text), reply_markup=builder.as_markup()
         )
     else:
-        await request.message.edit_text(text, reply_markup=builder.as_markup())
+        photo = types.FSInputFile(os.path.join('static', 'images', 'no_image.png'))
+        await request.message.edit_media(
+            InputMediaPhoto(media=photo, caption=text), reply_markup=builder.as_markup()
+        )
 
     await request.answer()
 

@@ -5,3 +5,5 @@ class Form(StatesGroup):
     choice_language = State()
     add_word = State()
     add_image = State()
+    delete_word = State()
+    clear_dict = State()
