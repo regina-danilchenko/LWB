@@ -1,15 +1,18 @@
 import os
+import random
 
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.fsm.context import FSMContext
 
 from data import db_session
 from data.image import Image
 from data.user import User
 
 from utils.common import print_text
+from utils.states import Form
 
 
 # Создаём роутер
@@ -109,9 +112,58 @@ async def word_to_card_game(request: CallbackQuery):
 
 # угадать перевод слова
 @learn_router.callback_query(lambda c: c.data == "guess_word_translation_game")
-async def guess_word_translation_game(request: CallbackQuery):
-    text = "Функция находится в разработке ⚙️"
+async def guess_word_translation_game(request: CallbackQuery, state: FSMContext):
+    global db_sess
+    user_id = request.from_user.id
+    words = [user.words for user in db_sess.query(User).filter(User.tg_id == user_id).all()][0]
+    word = random.choice(words)
+    text = f'''
+Слово: {word.translation}
+Угадай перевод и напиши его ниже 👇
+'''
+    await state.set_state(Form.guess_translation)
+    await state.update_data(correct_answer=word.original_word)
     await print_text(request, text)
+
+
+# проверка, угадал ли пользователь перевод
+@learn_router.message(Form.guess_translation)
+async def check_correct_guess(request: Message, state: FSMContext):
+    user_answer = request.text
+    data = await state.get_data()
+    wrong_variants = [
+        "Не угадали 😞. Попробуйте ещё раз!",
+        "Увы, мимо! Но вы справитесь 💪",
+        "Не то слово... Ещё попытка?",
+        "Почти! Но пока нет. Дальше будет лучше!",
+        "Не получилось сейчас — получится в следующий раз!",
+        "Неправильно 😕. Давайте ещё подумаем!",
+        "Эх, не то! Но вы точно на верном пути!"
+    ]
+    success_variants = [
+        "Верно! 🎉 Отличная работа!",
+        "Угадали! 🔥 Так держать!",
+        "Браво! 💡 Вы на волне!",
+        "Точно! 👍 Продолжайте в том же духе!",
+        "Правильно! 🏆 Вы молодец!",
+        "Есть контакт! ✅ Следующее слово ждёт!",
+        "Отгадано! 🎯 Вы справились!"
+    ]
+    if data['correct_answer'] == user_answer.capitalize():
+        await state.clear()
+        builder = InlineKeyboardBuilder()
+        builder.add(types.InlineKeyboardButton(
+            text="⏭️ Дальше",
+            callback_data="guess_word_translation_game"
+        ))
+        builder.add(types.InlineKeyboardButton(
+            text="🏠 Вернуться в главное меню",
+            callback_data="start"
+        ))
+        builder.adjust(1)
+        await print_text(request, random.choice(success_variants), builder.as_markup())
+    else:
+        await print_text(request, random.choice(wrong_variants))
 
 
 # выбрать правильный перевод

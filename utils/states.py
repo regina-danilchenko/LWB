@@ -7,3 +7,4 @@ class Form(StatesGroup):
     add_image = State()
     delete_word = State()
     clear_dict = State()
+    guess_translation = State()
