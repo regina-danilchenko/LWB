@@ -117,13 +117,20 @@ async def guess_word_translation_game(request: CallbackQuery, state: FSMContext)
     user_id = request.from_user.id
     words = [user.words for user in db_sess.query(User).filter(User.tg_id == user_id).all()][0]
     word = random.choice(words)
-    text = f'''
-Слово: {word.translation}
-Угадай перевод и напиши его ниже 👇
-'''
+
+    prompt_variants = [
+        f"Слово: {word.translation}\nУгадай перевод и напиши его ниже 👇\nЕсли вдруг не получится — напиши /stop",
+        f"Перевод какого слова: {word.translation}?\nВведи ответ ниже 👇\nЕсли захочешь выйти — команда /stop",
+        f"Попробуй перевести: {word.translation}\nЖду твой ответ 👇\nЧтобы закончить — введи /stop",
+        f"Значение: {word.translation}\nКак это звучит на другом языке?\nОтвет ниже 👇 или /stop для выхода",
+        f"Вот слово: {word.translation}\nВведи перевод ниже 👇\nЕсли нужно прерваться — напиши /stop",
+        f"Переведи слово: {word.translation}\nПиши свой вариант 👇\nДля остановки — /stop",
+        f"Что означает «{word.translation}» на изучаемом языке?\nОтвет напиши ниже 👇\nДля выхода — /stop"
+    ]
+
     await state.set_state(Form.guess_translation)
     await state.update_data(correct_answer=word.original_word)
-    await print_text(request, text)
+    await print_text(request, random.choice(prompt_variants))
 
 
 # проверка, угадал ли пользователь перевод
@@ -149,18 +156,23 @@ async def check_correct_guess(request: Message, state: FSMContext):
         "Есть контакт! ✅ Следующее слово ждёт!",
         "Отгадано! 🎯 Вы справились!"
     ]
-    if data['correct_answer'] == user_answer.capitalize():
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(
+        text="⏭️ Дальше",
+        callback_data="guess_word_translation_game"
+    ))
+    builder.add(types.InlineKeyboardButton(
+        text="🏠 Вернуться в главное меню",
+        callback_data="start"
+    ))
+    builder.adjust(1)
+
+    if user_answer == '/stop':
+        text = f'Правильным ответом был: {data['correct_answer']}'
         await state.clear()
-        builder = InlineKeyboardBuilder()
-        builder.add(types.InlineKeyboardButton(
-            text="⏭️ Дальше",
-            callback_data="guess_word_translation_game"
-        ))
-        builder.add(types.InlineKeyboardButton(
-            text="🏠 Вернуться в главное меню",
-            callback_data="start"
-        ))
-        builder.adjust(1)
+        await print_text(request, text, builder.as_markup())
+    elif data['correct_answer'] == user_answer.capitalize():
+        await state.clear()
         await print_text(request, random.choice(success_variants), builder.as_markup())
     else:
         await print_text(request, random.choice(wrong_variants))
