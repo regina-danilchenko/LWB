@@ -43,8 +43,8 @@ async def add_word(message: Message, state: FSMContext):
     # добавление в словарь слова
     db_sess = db_session.create_session()
     word = Word()
-    word.original_word = translated_word
-    word.translation = original_word
+    word.original_word = translated_word.capitalize()
+    word.translation = original_word.capitalize()
     word.last_reviewed = datetime.now()
     db_sess.add(word)
     db_sess.commit()
