@@ -60,9 +60,6 @@ async def process_learn(request: Message | CallbackQuery):
     builder.add(types.InlineKeyboardButton(text="🖼️ Показ карточек", callback_data="show_cards"))
     builder.add(types.InlineKeyboardButton(text="🎯 Сопоставь слово с картинкой", callback_data="word_to_card_game"))
     builder.add(types.InlineKeyboardButton(text="🤔 Угадай перевод слова", callback_data="guess_word_translation_game"))
-    builder.add(types.InlineKeyboardButton(
-        text="💡 Выбери правильный вариант перевода",callback_data="choose_word_translation_game"
-    ))
     builder.adjust(1)
 
     await print_text(request, text, builder.as_markup())
@@ -296,10 +293,3 @@ async def check_correct_guess(request: Message, state: FSMContext):
         await print_text(request, random.choice(success_variants), builder.as_markup())
     else:
         await print_text(request, random.choice(wrong_variants))
-
-
-# выбрать правильный перевод
-@learn_router.callback_query(lambda c: c.data == "choose_word_translation_game")
-async def choose_word_translation_game(request: CallbackQuery):
-    text = "Функция находится в разработке ⚙️"
-    await print_text(request, text)
