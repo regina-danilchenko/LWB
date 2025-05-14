@@ -36,7 +36,7 @@ async def get_word_for_delete(request: Message | CallbackQuery, state: FSMContex
 # удаление этого слова
 @delete_router.message(Form.delete_word)
 async def delete_word(request: Message, state: FSMContext):
-    word_to_delete = request.text
+    word_to_delete = request.text.capitalize()
     db_sess = db_session.create_session()
     user_id = request.from_user.id
     words = [user.words for user in db_sess.query(User).filter(User.tg_id == user_id).all()][0]
@@ -46,14 +46,14 @@ async def delete_word(request: Message, state: FSMContext):
         new_words.append(word.original_word.capitalize())
         new_words.append(word.translation.capitalize())
 
-    if word_to_delete.capitalize() not in new_words:
+    if word_to_delete not in new_words:
         text = '⚠️ В вашем словаре такого слова нет. Проверьте, не опечатались ли вы.'
         await print_text(request, text)
         await state.clear()
     else:
         word = db_sess.query(Word).filter(
-            (Word.original_word == word_to_delete.capitalize()) |
-            (Word.translation == word_to_delete.capitalize())
+            (Word.original_word == word_to_delete) |
+            (Word.translation == word_to_delete)
         ).first()
         image = db_sess.query(Image).filter(Image.word_id == word.id).first()
         user = db_sess.query(User).filter(User.tg_id == request.from_user.id).first()
