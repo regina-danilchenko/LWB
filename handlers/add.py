@@ -88,7 +88,7 @@ async def add_image(message: Message, state: FSMContext):
                              f'\n'
                              f'Слово: {word.original_word.capitalize()}\n'
                              f'Перевод: {word.translation.capitalize()}\n'
-                             f'Дата добавленя: {datetime.now().strftime('%d.%m.%Y')}\n'
+                             f'Дата добавленя: {datetime.now().strftime("%d.%m.%Y")}\n'
                              f'\n'
                              f'👍Так держать!👍')
 

@@ -24,8 +24,8 @@ async def process_add(request: Message | CallbackQuery):
         text = "📚 Ваш словарь:\n\n"
         for word in words:
             text += (f'🔹 {word.original_word.capitalize()}({language}) → {word.translation.capitalize()}\n'
-                     f'Добавлено: {word.added_date.strftime('%d.%m.%Y')}\n'
-                     f'Последнее повторение: {word.last_reviewed.strftime('%d.%m.%Y')}\n\n')
+                     f'Добавлено: {word.added_date.strftime("%d.%m.%Y")}\n'
+                     f'Последнее повторение: {word.last_reviewed.strftime("%d.%m.%Y")}\n\n')
         await print_text(request, text)
     else:
         text = "📚 Ваш словарь пуст! Добавляйте новые слова с помощью /add"

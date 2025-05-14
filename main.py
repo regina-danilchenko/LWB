@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from data import db_session
 from handlers import routers
+from handlers.learn import learn_router
 from menu.main_menu import set_main_menu
 
 
