@@ -8,3 +8,7 @@ class Form(StatesGroup):
     delete_word = State()
     clear_dict = State()
     guess_translation = State()
+    write_translation = State()
+    write_original = State()
+    choice_translation = State()
+    end = State()

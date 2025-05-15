@@ -55,7 +55,6 @@ async def add_word(message: Message, state: FSMContext):
     user = db_sess.query(User).filter(User.tg_id == user_id).first()
     user.words.append(word)
     id_word = word.id
-    user.statistics += 1
     db_sess.commit()
 
     # передача id слова в следующую функцию
