@@ -12,8 +12,8 @@ class User(SqlAlchemyBase):
     tg_id = sqlalchemy.Column(sqlalchemy.Integer)
     username = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     language_preference = sqlalchemy.Column(sqlalchemy.String)
-    learning_mode = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    statistics = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
+    the_best_statistics = sqlalchemy.Column(sqlalchemy.String, default='0/0')
+    last_statistics = sqlalchemy.Column(sqlalchemy.String, default='0/0')
     words = orm.relationship("Word",
                                   secondary="user_to_word",
                                   backref="users")

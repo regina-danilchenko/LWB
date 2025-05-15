@@ -5,6 +5,7 @@ from .learn import learn_router
 from .open_dict import open_dict_router
 from .start import start_router
 from .test import test_router
+from .statistics import statistics_router
 
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     'open_dict_router',
     'start_router',
     'test_router',
+    'statistics_router',
     'routers'
 ]
 
@@ -25,5 +27,6 @@ routers = [
     learn_router,
     open_dict_router,
     start_router,
-    test_router
+    test_router,
+    statistics_router
 ]

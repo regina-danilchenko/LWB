@@ -47,6 +47,7 @@ async def process_add(request: Message, state: FSMContext):
 async def close(message: Message, state: FSMContext):
     global all_tests, tests, score
     data = await state.get_data()
+    await state.clear()
     if data["r"] > 0:
         get_answer(data["true_word"], message.text, data['r'])
     text = ('Вы принудительно завершили тест.\n\n'
@@ -55,13 +56,24 @@ async def close(message: Message, state: FSMContext):
             '1 тест - 1 балл.\n\n')
     wrong_variants = [
         'Хороший результат.',
-        'Есть к чему стремиться.',
-        'Почти! Но пока нет.',
-        'Попробуйте ещё раз!',
-        'Дальше будет лучше!',
+        'Есть к чему стремиться.🚀',
+        'Почти! Но пока нет.👎',
+        'Попробуйте ещё раз!❌',
+        'Дальше будет лучше!😕',
         'В следующий раз будет лучше!'
     ]
     text += choice(wrong_variants)
+
+    db_sess = db_session.create_session()
+    b_statistic = db_sess.query(User).filter(User.tg_id == message.from_user.id).first().the_best_statistics.split('/')
+    user = db_sess.query(User).filter(User.tg_id == message.from_user.id).first()
+    if all_tests > 0 and int(b_statistic[1]) > 0:
+        if score / all_tests > int(b_statistic[0]) / int(b_statistic[1]):
+            user.the_best_statistics = f'{score}/{all_tests}'
+    else:
+        user.the_best_statistics = f'{score}/{all_tests}'
+    user.last_statistics = f'{score}/{all_tests}'
+    db_sess.commit()
     await print_text(message, text, ReplyKeyboardRemove())
 
 
@@ -72,30 +84,41 @@ async def end(message: Message, state: FSMContext):
         get_answer(data["true_word"], message.text, data['r'])
     await state.clear()
     global all_tests, tests, score
-    text = ('Вы звершили прохождение теста.\n\n'
+    text = ('Вы зaвершили прохождение теста.\n\n'
             f'Вы прошли {tests} тестов из {all_tests}.\n'
             f'И набрали {score} баллов из {all_tests}.\n\n'
             '1 тест - 1 балл.\n\n')
     success_variants = [
-        'Так держать!',
-        'Молодец!',
-        'Превосходно!',
-        'В следующий раз будет ещё лучше!',
-        'Вы отлично справились!',
-        'Вы просто огонь!'
+        'Так держать!👍',
+        'Молодец!👍',
+        'Превосходно!🥇',
+        'В следующий раз будет ещё лучше!⭐️',
+        'Вы отлично справились!✅',
+        'Вы просто огонь!🔥'
     ]
     wrong_variants = [
         'Хороший результат.',
-        'Есть к чему стремиться.',
-        'Почти! Но пока нет.',
-        'Попробуйте ещё раз!',
-        'Дальше будет лучше!',
+        'Есть к чему стремиться.🚀',
+        'Почти! Но пока нет.👎',
+        'Попробуйте ещё раз!❌',
+        'Дальше будет лучше!😕',
         'В следующий раз будет лучше!'
     ]
     if score == all_tests:
         text += choice(success_variants)
     else:
         text += choice(wrong_variants)
+
+    db_sess = db_session.create_session()
+    b_statistic = db_sess.query(User).filter(User.tg_id == message.from_user.id).first().the_best_statistics.split('/')
+    user = db_sess.query(User).filter(User.tg_id == message.from_user.id).first()
+    if all_tests > 0 and int(b_statistic[1]) > 0:
+        if score / all_tests > int(b_statistic[0]) / int(b_statistic[1]):
+            user.the_best_statistics = f'{score}/{all_tests}'
+    else:
+        user.the_best_statistics = f'{score}/{all_tests}'
+    user.last_statistics = f'{score}/{all_tests}'
+    db_sess.commit()
     await print_text(message, text, ReplyKeyboardRemove())
 
 
@@ -163,7 +186,7 @@ async def write_original(message: Message, state: FSMContext):
     true_word = choice(original_words)
     original_words.remove(true_word)
     translation_true_word = db_sess.query(Word).filter(Word.original_word == true_word).first().translation
-    text = f'Наипишите, какое слово переводится как "{translation_true_word}".'
+    text = f'Напишите, какое слово переводится как "{translation_true_word}".'
 
     if not original_words:
         await state.set_state(Form.end)

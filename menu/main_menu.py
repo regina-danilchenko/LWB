@@ -12,6 +12,7 @@ async def set_main_menu(bot: Bot):
         BotCommand(command='/clear_dict', description='🚫 Очистить словарь'),
         BotCommand(command='/learn', description='🎓 Учить'),
         BotCommand(command='/test', description='📝 Проверка'),
+        BotCommand(command='/statistics', description='🤓 Моя статистика'),
         BotCommand(command='/help', description='❓ Помощь')
     ]
     await bot.set_my_commands(main_menu_commands)

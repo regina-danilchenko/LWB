@@ -186,11 +186,6 @@ async def check_word_card_answer(callback: CallbackQuery):
         user_id = int(user_id)
 
         if selected_id == correct_id:
-            user = session.query(User).filter(User.tg_id == user_id).first()
-            if user:
-                user.statistics = (user.statistics or 0) + 1
-                session.commit()
-
             correct_answers += 1
             await callback.answer("Правильно! ✅", show_alert=True)
         else:
