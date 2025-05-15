@@ -1,6 +1,6 @@
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import KeyboardButton, ReplyKeyboardMarkup
 
@@ -112,9 +112,9 @@ async def clear_dict(request: Message, state: FSMContext):
 
         db_sess.commit()
         text = '✅ Ваш словарь был успешно очищен!'
-        await print_text(request, text)
+        await print_text(request, text, keyboard=ReplyKeyboardRemove())
         await state.clear()
     else:
         text = '✅ Очистка словаря была отменена.'
-        await print_text(request, text)
+        await print_text(request, text, keyboard=ReplyKeyboardRemove())
         await state.clear()

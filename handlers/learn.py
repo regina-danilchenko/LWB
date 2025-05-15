@@ -5,15 +5,14 @@ import random
 
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, InputMediaPhoto, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
-from sqlalchemy import select, func
 
 from data import db_session
-from data.word import Word
 from data.image import Image
 from data.user import User
+from data.word import Word
 
 from utils.common import print_text
 from utils.states import Form
@@ -35,7 +34,7 @@ correct_answers = 0
 
 
 # Получение слов пользователя
-async def get_user_words(user_id): 
+async def get_user_words(user_id):
     global db_sess
     user = db_sess.query(User).filter(User.tg_id == user_id).first()
     return user.words if user else []
@@ -191,7 +190,7 @@ async def check_word_card_answer(callback: CallbackQuery):
             if user:
                 user.statistics = (user.statistics or 0) + 1
                 session.commit()
-            
+
             correct_answers += 1
             await callback.answer("Правильно! ✅", show_alert=True)
         else:
@@ -211,15 +210,22 @@ async def check_word_card_answer(callback: CallbackQuery):
             await word_to_card_game_logic(user_id, callback.message)
         else:
             current_game_round[user_id] = 1
-            kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
-                text="Сыграть снова", callback_data="word_to_card_game"
-            )]])
-            
+            kb = InlineKeyboardBuilder()
+            kb.add(types.InlineKeyboardButton(
+                text="🔄 Начать заново",
+                callback_data="word_to_card_game"
+            ))
+            kb.add(types.InlineKeyboardButton(
+                text="🏠 Вернуться в главное меню",
+                callback_data="start"
+            ))
+            kb.adjust(1)
+
             result_text = f"Ваш результат: {correct_answers} из {MAX_ROUNDS}."
-            await callback.message.answer(f"Игра окончена! 🎉\n{result_text}", reply_markup=kb)
+            await callback.message.answer(f"Игра окончена! 🎉\n{result_text}", reply_markup=kb.as_markup())
 
             correct_answers = 0
-    
+
     except Exception as e:
         logger.error(f"Error in check_word_card_answer: {e}", exc_info=True)
         await callback.answer("Произошла ошибка", show_alert=True)
