@@ -8,7 +8,12 @@ class Form(StatesGroup):
     delete_word = State()
     clear_dict = State()
     guess_translation = State()
+    show_cards = State()
     write_translation = State()
     write_original = State()
     choice_translation = State()
     end = State()
+
+
+class WordToCardGame(StatesGroup):
+    in_game = State()

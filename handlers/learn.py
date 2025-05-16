@@ -15,7 +15,7 @@ from data.user import User
 from data.word import Word
 
 from utils.common import print_text
-from utils.states import Form
+from utils.states import Form, WordToCardGame
 
 
 # Настройка логгера
@@ -28,9 +28,7 @@ learn_router = Router()
 visited = 0
 db_sess = None
 current_image_index = 0
-current_game_round = {}
 MAX_ROUNDS = 5
-correct_answers = 0
 
 
 # Получение слов пользователя
@@ -119,15 +117,13 @@ async def show_one_card(current_word, request):
 
 # сопоставление слова с картинкой
 @learn_router.callback_query(lambda c: c.data == "word_to_card_game")
-async def word_to_card_game(request: CallbackQuery):
-    global current_game_round
-    user_id = request.from_user.id
-    current_game_round[user_id] = 1
-    await word_to_card_game_logic(user_id, request.message)
+async def word_to_card_game(request: CallbackQuery, state: FSMContext):
+    await state.set_state(WordToCardGame.in_game)
+    await state.update_data(round=1, score=0)
+    await word_to_card_game_logic(request.from_user.id, request.message, state)
 
 
-# логика игры "сопоставь слово с картинкой"
-async def word_to_card_game_logic(user_id: int, message: Message):
+async def word_to_card_game_logic(user_id: int, message: Message, state: FSMContext):
     session = db_session.create_session()
     try:
         user = session.query(User).filter(User.tg_id == user_id).first()
@@ -160,51 +156,51 @@ async def word_to_card_game_logic(user_id: int, message: Message):
         builder = InlineKeyboardBuilder()
         for word in game_words:
             builder.button(
-                text=word.original_word,  # Показываем оригинальное слово (например, английское)
-                callback_data=f"wcard_ans_{word.id}_{correct_word.id}_{user_id}"
+                text=word.original_word,
+                callback_data=f"wcard_ans_{word.id}_{correct_word.id}"
             )
         builder.adjust(2)
 
+        data = await state.get_data()
+        round_number = data.get("round", 1)
+
         await message.answer_photo(
             photo=image.file_id,
-            caption=f"Раунд {current_game_round.get(user_id, 1)} из {MAX_ROUNDS}.\nВыберите правильный перевод:",
+            caption=f"Раунд {round_number} из {MAX_ROUNDS}.\nВыберите правильный перевод:",
             reply_markup=builder.as_markup()
         )
     finally:
         session.close()
 
-
 # обработка ответа на карточку
 @learn_router.callback_query(lambda c: c.data.startswith("wcard_ans_"))
-async def check_word_card_answer(callback: CallbackQuery):
-    global current_game_round, correct_answers
+async def check_word_card_answer(callback: CallbackQuery, state: FSMContext):
     session = db_session.create_session()
     try:
-        _, _, selected_id, correct_id, user_id = callback.data.split("_")
+        _, _, selected_id, correct_id = callback.data.split("_")
         selected_id = int(selected_id)
         correct_id = int(correct_id)
-        user_id = int(user_id)
+
+        data = await state.get_data()
+        score = data.get("score", 0)
+        round_number = data.get("round", 1)
 
         if selected_id == correct_id:
-            correct_answers += 1
+            score += 1
             await callback.answer("Правильно! ✅", show_alert=True)
         else:
             correct_word = session.query(Word).get(correct_id)
-            correct_translation = correct_word.translation  # Правильный перевод
-            original_word = correct_word.original_word  # Оригинальное слово
-            await callback.answer(f"Неправильно! ❌\nПравильный ответ: {original_word} - {correct_translation}", show_alert=True)
-
-
+            await callback.answer(
+                f"Неправильно! ❌\nПравильный ответ: {correct_word.original_word} - {correct_word.translation}",
+                show_alert=True
+            )
 
         await callback.message.delete()
 
-        # Следующий раунд или конец игры
-        current_round = current_game_round.get(user_id, 1)
-        if current_round < MAX_ROUNDS:
-            current_game_round[user_id] = current_round + 1
-            await word_to_card_game_logic(user_id, callback.message)
+        if round_number < MAX_ROUNDS:
+            await state.update_data(score=score, round=round_number + 1)
+            await word_to_card_game_logic(callback.from_user.id, callback.message, state)
         else:
-            current_game_round[user_id] = 1
             kb = InlineKeyboardBuilder()
             kb.add(types.InlineKeyboardButton(
                 text="🔄 Начать заново",
@@ -216,10 +212,9 @@ async def check_word_card_answer(callback: CallbackQuery):
             ))
             kb.adjust(1)
 
-            result_text = f"Ваш результат: {correct_answers} из {MAX_ROUNDS}."
-            await callback.message.answer(f"Игра окончена! 🎉\n{result_text}", reply_markup=kb.as_markup())
-
-            correct_answers = 0
+            result_text = f"Игра окончена! 🎉\nВаш результат: {score} из {MAX_ROUNDS}."
+            await callback.message.answer(result_text, reply_markup=kb.as_markup())
+            await state.clear()
 
     except Exception as e:
         logger.error(f"Error in check_word_card_answer: {e}", exc_info=True)
