@@ -61,7 +61,6 @@ async def delete_word(request: Message, state: FSMContext):
         if word and image and user:
             db_sess.delete(word)
             db_sess.delete(image)
-            user.statistics -= 1
             db_sess.commit()
 
             text = '✅ Успешно удалено.'
@@ -107,8 +106,6 @@ async def clear_dict(request: Message, state: FSMContext):
             db_sess.delete(word)
             if image:
                 db_sess.delete(image)
-
-        user.statics = 0
 
         db_sess.commit()
         text = '✅ Ваш словарь был успешно очищен!'
