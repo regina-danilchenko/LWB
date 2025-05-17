@@ -12,3 +12,7 @@ class Form(StatesGroup):
     write_original = State()
     choice_translation = State()
     end = State()
+
+
+class WordToCardGame(StatesGroup):
+    in_game = State()
